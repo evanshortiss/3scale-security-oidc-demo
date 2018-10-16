@@ -10,7 +10,7 @@ _Securing APIs with OpenID Connect using 3scale API Management and Red Hat Singl
 * Red Hat 3scale API Management
 * Red Hat Single Sign On
 * Red Hat Fuse
-* Red Hat AMQ
+* Red Hat AMQ 
 
 **Provisioning Time:** ~15 min
 
@@ -29,15 +29,14 @@ Red Hat Single Sign On
 
 3scale API Management
 
-* Username: **admin**
-* Password: **password**
+* Your SSO user for the Integreatly cluster.
 
 Web Application
 
 * Username: **statepolice**
 * Password: **password**
 
-**Github Repo:** http://github.com/jbossdemocentral/3scale-security-oidc-demo
+**Github Repo:** http://github.com/evanshortiss/3scale-security-oidc-demo
 
 ## Background
 
@@ -78,25 +77,25 @@ Follow this instructions to setup a working demo environment.
 
     ```
     $ oc login -u system:admin
-    $ oc create -f https://raw.githubusercontent.com/jboss-openshift/application-templates/ose-v1.4.7/jboss-image-streams.json -n openshift
-    $ for i in {https,mysql,mysql-persistent,postgresql,postgresql-persistent}; do oc create -f https://raw.githubusercontent.com/jboss-openshift/application-templates/ose-v1.4.7/sso/sso71-$i.json -n openshift; done
+    $ oc create -f https://raw.githubusercontent.com/jboss-openshift/application-templates/ose-v1.4.16/jboss-image-streams.json -n openshift
+    $ for i in {https,mysql,mysql-persistent,postgresql,postgresql-persistent}; do oc create -f https://raw.githubusercontent.com/jboss-openshift/application-templates/ose-v1.4.15/sso/sso72-$i.json -n openshift; done
     ```
 
 1. Create project for Red Hat Single Sign On.
 
     ```
     $ oc new-project rh-sso --display-name='Red Hat Single Sign On'
-    $ oc create -f https://raw.githubusercontent.com/jboss-openshift/application-templates/ose-v1.4.7/secrets/sso-app-secret.json -n rh-sso
+    $ oc create -f https://raw.githubusercontent.com/jboss-openshift/application-templates/ose-v1.4.15/secrets/sso-app-secret.json -n rh-sso
     $ oc policy add-role-to-user view system:serviceaccount:rh-sso:sso-service-account
-    $ oc new-app sso71-mysql-persistent -p HTTPS_NAME=jboss -p HTTPS_PASSWORD=mykeystorepass -p SSO_ADMIN_USERNAME=keyadmin -p SSO_ADMIN_PASSWORD=keypassword
+    $ oc new-app sso72-mysql-persistent -p HTTPS_NAME=jboss -p HTTPS_PASSWORD=mykeystorepass -p SSO_ADMIN_USERNAME=keyadmin -p SSO_ADMIN_PASSWORD=keypassword
     ```
 
 1. Create project for API Implementation.
 
     ```
     $ oc new-project service --display-name='Alert Center Backend Service'
-    $ oc process -f https://raw.githubusercontent.com/jbossdemocentral/3scale-security-oidc-demo/master/support/templates/amq63-basic-template.json -p MQ_USERNAME=admin -p MQ_PASSWORD=admin | oc create -f -
-    $ oc process -f https://raw.githubusercontent.com/jbossdemocentral/3scale-security-oidc-demo/master/support/templates/accidentalert-backend-template.json -p APP_NAME=accidentalert-backend -p GIT_REPO=https://github.com/jbossdemocentral/3scale-security-oidc-demo.git -p GIT_REF=master -p CONTEXT_DIR=/projects/myaccidentalert -p ACTIVEMQ_BROKER_USERNAME=admin -p ACTIVEMQ_BROKER_PASSWORD=admin -p CPU_REQUEST=1 -p MEMORY_REQUEST=512Mi -p MEMORY_LIMIT=1024Mi | oc create -f -
+    $ oc process -f https://raw.githubusercontent.com/evanshortiss/3scale-security-oidc-demo/master/support/templates/amq63-basic-template.json -p MQ_USERNAME=admin -p MQ_PASSWORD=admin | oc create -f -
+    $ oc process -f https://raw.githubusercontent.com/evanshortiss/3scale-security-oidc-demo/master/support/templates/accidentalert-backend-template.json -p APP_NAME=accidentalert-backend -p GIT_REPO=https://github.com/evanshortiss/3scale-security-oidc-demo.git -p GIT_REF=master -p CONTEXT_DIR=/projects/myaccidentalert -ACTIVEMQ_SERVICE_HOST=broker-amq-tcp.evals-example-com-walkthrough-projects.svc -p ACTIVEMQ_BROKER_USERNAME=admin -p ACTIVEMQ_BROKER_PASSWORD=admin -p CPU_REQUEST=1 -p MEMORY_REQUEST=512Mi -p MEMORY_LIMIT=1024Mi | oc create -f -
     ```
 
 1. Create project for ui app. Replace the URL env vars with your actual environment hostnames.
@@ -115,19 +114,25 @@ Follow this instructions to setup a working demo environment.
 
 ## Config
 
-1. Import the insurance [realm](support/templates/insurance-realm.json) into Red Hat Single Sign On.
-1. Add role 'manage-clients' to the 3sale-admin client's service account.
+1. Import the Insurance [realm](support/templates/insurance-realm.json) into Red Hat Single Sign On.
+1. Select the newly created Insurance realm in Red Hat Single Sign On. Navigate to the `Clients` section in the UI and click the `Create` button.
+    1. Set the `Client ID` to `accidentalert-ui`
+    1. Set `Root URL` to `www-accidentalert-ui.$YOUR_HOST`.
+    1. Click `Save`
+1. Add role 'manage-clients' to the 3scale-admin client's service account.
 1. Write down the service account secret.
-1. Create the backend service in 3scale. 
-    1. Select OIDC as authentication mechanism.
+1. Create the backend service in 3scale using the `Create Service` button from the `APIs` Tab. 
     1. Set name "Accident Report API"
     1. Set system name "accidentalert"
-1. Create an application plan.
+    1. Scroll down and select OpenID Connect (OIDC) as authentication mechanism.
+1. From the 3scale `APIs` tab expand your new `Accident Report API1 and click `Create Application Plan.`
     1. Set name "Law Enforcement"
     1. Set system name "lawenforcement"
-    1. Publish the plan
-1. Config the backend service API.
-    1. Fill in the Private Base URL with the backend service OpenShift route.
+    1. Click `Create Application Plan`
+1. From the 3scale `APIs` tab expand your new `Accident Report API1 and click `Configure APIcast`.
+    1. Fill in the `Private Base URL` with the backend service OpenShift route. This will be `http://accidentalert-backend.service.svc:8080`
+    1. Expand the `Mapping Rules` section and change the `verb` dropdown from `GET` to `POST`
+    1. Click the `Update the Staging Environment` button
     1. Fill in the information of the RH SSO endpoint for 3scale zync.
 1. Create the accidentalert-ui application.
     1. Set description "Accident Report Web Application"
