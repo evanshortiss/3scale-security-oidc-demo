@@ -93,6 +93,7 @@ gulp.task('html', ['clean'], function () {
     return gulp
         .src([srcPath + '*.html'])
         .pipe(include())
+        .pipe(replace('accidentalert-ui', process.env.CLIENT_ID || 'accidentalert-ui'))
         .pipe(replace('http://localhost:18080', process.env.SSO_URL || 'http://localhost:18080'))
         .pipe(replace('http://localhost:8080', process.env.BACKEND_URL || 'http://localhost:8080'))
         .on("error", notify.onError({ message: "Error: <%= error.message %>", title: "Error running html task" }))
